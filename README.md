@@ -4,7 +4,7 @@
 
 ## WHEN TO USE THIS
 - If you have an archive of movies and the folder names are quite messy
-- If you are using Kodi or Plex or AppleTV and it keeps wrongly identifying some of your movies
+- If you are using **Kodi** or **Plex** or **AppleTV** and it keeps wrongly identifying some of your movies
 - If you have OCD like I do
 
 ## WHAT IT DOES

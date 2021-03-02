@@ -549,7 +549,7 @@ def process_all_folders(my_basedir):
 try:
 
     print('The Organizer')
-    print('v.0.0.4 @ 2021-03-01')
+    print('by Rares Dragan')
     print('Processing movies folder: '+cfg.basedir+'\n')
 
     #get_name_by_folder("1997 - Ip-Man The history - Eine Stadt DVDrip sucht 1080P einen Morder 1931")
