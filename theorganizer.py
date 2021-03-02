@@ -552,13 +552,6 @@ try:
     print('by Rares Dragan')
     print('Processing movies folder: '+cfg.basedir+'\n')
 
-    #get_name_by_folder("1997 - Ip-Man The history - Eine Stadt DVDrip sucht 1080P einen Morder 1931")
-
-    # get_movie_resolution("1997 - Ip-Man The history - Eine Stadt DVDrip sucht 1080P einen Morder 1931")
-    #get_imdb_details_by_search_via_imdbpie("1960 Spartacus")
-
-    #process_movie_folder("/media/multimedia/movies_temp/1931 - M - Eine Stadt sucht einen Mrder - 1080p")
-
     process_all_folders(cfg.basedir)
 
 
