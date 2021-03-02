@@ -20,7 +20,8 @@
 - will assign a nfo XML tag based on the detected IMDB collection
 
 ## VERSION HISTORY
-#v.0.0.5 @ 2021-03-02
+
+### v.0.0.5 @ 2021-03-02
 - added gitignore rules similar to ones suggested here: https://gist.github.com/octocat/9257657
 - thought about adding this to my empty 100 years old git account
 
