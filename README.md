@@ -18,6 +18,12 @@
 
 ## VERSION HISTORY
 
+### v.0.0.7 @ 2021-03-06
+- get_imdb_list_movies will now get movies fron export csv instead of scraping
+- all movies in the list are parsed this way
+- new feature: when renaming folders keep in mind duplicate movies exists
+- renamed folders might add a timestamp to mark duplicates
+- new feature: grab (and compare) imdb movie id from both folder and file name
 
 ### v.0.0.6 @ 2021-03-06
 - converted the script code from python 2.7 to python 3.7
