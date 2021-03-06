@@ -15,11 +15,18 @@
 - creates the IMDB XML into the existing nfo file or in a new nfo file
 - clean renames the movie folder like this: YYYY - The Movie Name - 1080p
 
-## TODO
-- will detect the movie in a personal IMDB collection (e.g. THE CLASSICS)
-- will assign a nfo XML tag based on the detected IMDB collection
 
 ## VERSION HISTORY
+
+
+### v.0.0.6 @ 2021-03-06
+- significant improvements
+- detects the movie in a personal IMDB collection (e.g. THE CLASSICS)
+- assigns a nfo XML tag based on the detected IMDB collection
+- converted the script code from python 2.7 to python 3.7
+- added new code to grab imdb lists and movies in imdb lists for a imdb_user_id
+- added get_movie_tags(imdb_movie_id) = generating tags xml for a movie_id
+- known issues: get_imdb_list_movies will not get movies from multiple pages
 
 ### v.0.0.5 @ 2021-03-02
 - added gitignore rules similar to ones suggested here: https://gist.github.com/octocat/9257657

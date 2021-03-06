@@ -9,6 +9,7 @@ import sys
 import traceback
 import requests
 import json
+import urllib.request
 
 import imdbpie
 
@@ -75,6 +76,159 @@ movie_title_resolutions    = {'2160p': '2160p'
 from imdbpie import ImdbFacade
 imdb = ImdbFacade()
 
+from six.moves.urllib.request import urlopen
+
+imdb_list_array = []
+
+# parse imdb website
+# fetch watchlist for given imdb_user_id
+# return bidimensional array: list_id, list_name
+# ==============================================================================
+
+def get_imdb_user_lists(imdb_user_id):
+
+    url = 'https://www.imdb.com/user/%s/lists' % (imdb_user_id)
+
+
+    print("\tGrabbing %s user's lists from imdb.com" % imdb_user_id)
+    print("\t" + url)
+
+    response = urlopen(url)
+    body = response.read()
+
+    if cfg.verbose:
+        print(body)
+
+    # ATTENTION !!!
+    # WARNING !!!
+    # This needs to be updated if the imdb site will change its HTML code !!!
+
+    ID_SIGNATURE_START = '    <a class="list-name" href="/list/'
+    ID_SIGNATURE_END = '</a>'
+
+    the_ids = []
+    for line in body.splitlines():
+        line = str(line)
+        if (ID_SIGNATURE_START in line):
+            found = line[line.find(ID_SIGNATURE_START)+len(ID_SIGNATURE_START):len(line)-len(ID_SIGNATURE_END)-1]
+            if cfg.verbose:
+                print('Found list: ' + found)
+            obj = found.split('/">')
+            the_ids.append(obj)
+
+    if cfg.verbose:
+        print('\tFetching user lists completed!')
+        print(the_ids)
+    return the_ids
+
+
+
+
+# parse imdb website
+# fetch list content for a given imdb_list_id
+
+def get_imdb_list_movies(imdb_list_object):
+
+    if imdb_list_object != None:
+        url='https://www.imdb.com/list/'+imdb_list_object[0]
+
+    print('\tFetching movies from imdb list: '+url)
+
+    response = urllib.request.urlopen(url)
+    body = response.read()
+
+    # parse some data
+
+    ID_SIGNATURE_START = '<a href="/title/'
+    ID_SIGNATURE_END = '/"'
+
+    the_ids = []
+    for line in body.splitlines():
+        line = line.decode("utf-8")
+        if cfg.verbose:
+            print(line)
+        # <a href="/title/tt1092026/?ref_=ttls_li_tt">Paul</a>
+        if (line.startswith(ID_SIGNATURE_START)):
+            found = line[line.find(ID_SIGNATURE_START)+len(ID_SIGNATURE_START):len(line)-len(ID_SIGNATURE_END)]
+            if cfg.verbose:
+                print('Found id: ' + found)
+                # remove first hyphen if after a year: e.g. 1997 -
+            if re.match("^tt\d+", found):
+                the_ids.append(found)
+
+    if cfg.verbose:
+        print('\tFetching movies from list completed!')
+        print(the_ids)
+
+    return the_ids
+
+
+# parsing idb website
+# return a list with all user's movies by collections
+
+def get_imdb_user_movies(imdb_user_id):
+
+        global imdb_list_array
+
+        print("\tGetting watchlist movies from IMDB for user: " + imdb_user_id)
+        # get all user public lists
+        # obtain list id and list name
+
+        listids = get_imdb_user_lists(cfg.imdb_user_id)
+
+        # obtain movieids array for each list
+
+        for onelist in listids:
+            imdbids = get_imdb_list_movies(onelist)
+            q = [None] * 3
+            q[0] = onelist[0]
+            q[1] = onelist[1]
+            q[2] = imdbids
+            imdb_list_array.append(q)
+
+        # Now we have the complete database of list ids including movies
+        if cfg.verbose:
+            for line in imdb_list_array:
+                print('\n'.join(map(str, line)))
+
+
+# generate an XML tags for the movie
+# by searching the movie in my iMDB movies lists
+
+def get_movie_tags(imdb_movie_id):
+
+    global imdb_list_array
+    the_tags = ""
+
+    print('\tGenerating movie <tags> for: ' + imdb_movie_id)
+
+    if cfg.verbose:
+        print('The IMDB lists array looks like this:')
+        print(imdb_list_array)
+
+    print('\tSearching for the movie in the imdb lists...')
+
+    count = 0
+    for list in imdb_list_array:
+        for id in list[2]:
+            if cfg.verbose:
+                print('\tChecking id: ' + id)
+            if id == imdb_movie_id:
+                if cfg.verbose:
+                    print('\t Found '+ id +' movie in:')
+                    print(list[0])
+                    print(list[1])
+                    print(list[2])
+                the_tags += "\n<tag>" + str(list[1]) + "</tag>"
+                count += 1
+
+    print('\tFound the movie in '+str(count)+' imdb lists!')
+    if cfg.verbose:
+        print('The <tags> for: ' + imdb_movie_id + ' are: ')
+        print(the_tags)
+
+    return the_tags
+
 
 # get a decently clean movie title from a messy release folder names
 # ==============================================================================
@@ -85,17 +239,20 @@ def get_movie_resolution(video_file_name):
 
     for key in movie_title_resolutions:
         if key.lower() in video_file_name.lower():
-            return movie_title_resolutions[key]
+            return str(movie_title_resolutions[key])
             break
 
-    return
+    return ""
 
 # get a decently clean movie title from a messy release folder names
 # ==============================================================================
 
 def get_name_by_folder(folderpath):
 
-    folderpath = folderpath.decode("utf-8")
+    # no need to decode in python 3
+    if sys.version_info.major != 3:
+        folderpath = folderpath.decode("utf-8")
+
     folder, the_movie_name = os.path.split(folderpath)
 
     for replacer in movie_title_specials:
@@ -126,7 +283,8 @@ def get_name_by_folder(folderpath):
     if split_pos !=0:
         the_movie_name = the_movie_name[: split_pos]
 
-    print("\tDetected movie name: " + the_movie_name.encode("ascii", errors="ignore"))
+
+    print("\tDetected movie name: " + the_movie_name)
     return the_movie_name
 
 
@@ -162,7 +320,7 @@ def get_imdb_details_by_id_via_imdbpie(imdb_id):
 def get_imdb_details_by_search_via_rapidapi(search):
 
 
-    print("\tGet IMDB details by name: " + search.encode("utf-8"))
+    print("\tGet IMDB details by name: " + search)
 
     url = "https://imdb-internet-movie-database-unofficial.p.rapidapi.com/search/" + search
 
@@ -236,7 +394,7 @@ def process_movie_folder(folderpath):
     # if folder is special ### type just ignore it
     if cfg.ignore_special_folders:
         tfolder, tname = os.path.split(folderpath)
-        if tname[: 3] == "###":
+        if tname[: 3] == "###" or tname[: 3] == "!!!":
             print("\tFound special "+tname[: 3]+" folder path. Exiting without processing it.")
             return
 
@@ -294,18 +452,17 @@ def process_movie_folder(folderpath):
             if ('imdb' in nfo) or ('IMDB' in nfo):
 
                 # regexp searching for something like http://www.imdb.com/title/tt0064030
-                regex = "\b((?:https?://)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:/[\w\.-]*)*/?)\b"
+                regex = "((?:https?://)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:/[\w\.-]*)*/?)"
 
                 imdb_link = ""
                 matches = re.findall(regex, nfo)
                 for match in matches:
                     if ('imdb' in match):
                         imdb_link = match
-
-                        # get IMDB code from IMDB link
-                        tmp_index=imdb_link.rfind('/')
-                        length = len(imdb_link)
-                        imdb_id=imdb_link[tmp_index+1 :]
+                        idmatches = re.findall("tt\d+", imdb_link)
+                        for idmatch in idmatches:
+                            imdb_id = idmatch
+                            break
 
 
             if (imdb_link != ""):
@@ -325,7 +482,9 @@ def process_movie_folder(folderpath):
         search_name = get_name_by_folder(folderpath)
         imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
 
-        print(imdb_object)
+        if cfg.verbose:
+            print(imdb_object)
+
         if imdb_object != None:
             imdb_id     = imdb_object.imdb_id
             grabbed_imdb = True
@@ -363,7 +522,7 @@ def process_movie_folder(folderpath):
 
 
     # prepare the tags
-    the_tags = "\n<tag>THE SPECIAL</tag>"
+    the_tags = get_movie_tags(imdb_id)
 
     # prepare the xml code with IMDB and tags and everything
 
@@ -377,7 +536,9 @@ def process_movie_folder(folderpath):
     if the_tags != "":
         the_xml += the_tags
     the_xml += "\n</movie>"
-    the_xml = the_xml.encode('utf-8').strip()
+
+    if sys.version_info.major != 3:
+            the_xml = the_xml.encode('utf-8').strip()
 
 
     # writing to nfo file
@@ -386,15 +547,18 @@ def process_movie_folder(folderpath):
     if found_nfo == True:
 
 
-        if ('<movie>' in nfo) and ('<tag>' in nfo):
+        if ('<movie>' in nfo):
 
+            if cfg.verbose:
+                print("NFO FILE:--------")
+                print(nfo)
             # check if <movie> xml exists!
-            regex="<movie>[\s\S]*?<\/movie>"
+            regex = "<movie>[\s\S]*?<\/movie>"
             matches = re.findall(regex, nfo)
 
             for old_xml in matches:
                     found_xml = True
-                    print("\tFound movie XML tags in nfo")
+                    print("\tGreat news: Found movie XML tags in nfo !!!")
 
 
         if (found_xml == False):
@@ -485,18 +649,22 @@ def process_movie_folder(folderpath):
         invalid = '<>:"/\|?*'
         for char in invalid:
 	           clean_name = clean_name.replace(char, '')
-        #clean_name = re.sub(r'[^\w\s-]', '', clean_name)
-        clean_name = clean_name.encode("utf-8")
-        clean_name = str(imdb_year)+' - '+clean_name
 
-        print("try to rename: " + clean_name)
+        if sys.version_info.major != 3:
+            clean_name = clean_name.encode("utf-8")
+
+        clean_name = str(imdb_year)+' - '+str(clean_name)
+
+        print("\tTrying to rename: " + clean_name)
+
         if video_file_name:
-             clean_name += ' - '+get_movie_resolution(video_file_name)
+            if get_movie_resolution(video_file_name):
+                clean_name += ' - '+get_movie_resolution(video_file_name)
 
         folder, old_name = os.path.split(folderpath)
         new_folderpath = os.path.join(folder, clean_name)
-        print(folderpath)
-        print(new_folderpath)
+        print("\tFrom: " + folderpath)
+        print("\tTo: " + new_folderpath)
         os.rename(folderpath, new_folderpath)
         #keep for next stage (movie rename)
         folderpath = new_folderpath
@@ -513,10 +681,14 @@ def process_movie_folder(folderpath):
 
     if (cfg.do_folder_alerting and (found_video == False or found_nfo == False or found_imdb == False or found_xml == False or found_many_videos == True)):
 
+        alerting = '###'
+        if (found_video == False or found_many_videos == True):
+            alerting = '!!!'
+
         folder, old_name = os.path.split(folderpath)
         new_name = old_name
-        if (old_name[0:3] != '###'):
-            new_name = "### "+old_name
+        if (old_name[0:3] != '###' and old_name[0:3] != '!!!'):
+            new_name = alerting+' '+old_name
         new_folderpath = os.path.join(folder, new_name)
         os.rename(folderpath, new_folderpath)
         #keep for next stage (movie rename)
@@ -532,13 +704,15 @@ def process_movie_folder(folderpath):
 
 def process_all_folders(my_basedir):
 
+    print("\tProcessing movies folder: " + my_basedir)
+
     # start in basedir
     for fn in os.listdir(my_basedir):
 
         if not os.path.isdir(os.path.join(my_basedir, fn)):
             continue # Not a directory
 
-        print('\nMovie: \t' + fn)
+        print('\nFolder: \t' + fn)
         print('\t=============================================================================')
         # search for NFO file
         folderpath = os.path.join(cfg.basedir, fn)
@@ -548,12 +722,26 @@ def process_all_folders(my_basedir):
 
 try:
 
-    print('The Organizer')
-    print('by Rares Dragan')
-    print('Processing movies folder: '+cfg.basedir+'\n')
+    print('\tThe Organizer (python 3.7 script)')
+    print('\tby Rares Dragan')
+    print('\tProcessing movies folder: '+cfg.basedir+'\n')
 
+
+    # testing
+    #get_imdb_list_movies(None)
+    # just testing
+    #get_imdb_user_lists(cfg.imdb_user_id)
+
+    # first we have to grab all user movies from lists / categories
+    # will use this later for tags
+    get_imdb_user_movies(cfg.imdb_user_id)
+
+    # print(imdb_list_array)
+    # the_tags = get_movie_tags('tt0064276')
+    # print(the_tags)
+
+    # and now let's process and clean the movies folder
     process_all_folders(cfg.basedir)
-
 
 except Exception as e:
     errors = True
