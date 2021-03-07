@@ -44,6 +44,7 @@ movie_title_specials    = [
                             ,'!'
                             ,'['
                             ,']'
+                            ,'_'
                             ]
 
 movie_title_splitter    = [
@@ -57,6 +58,7 @@ movie_title_splitter    = [
                             ,'BRrip'
                             ,'BDrip'
                             ,'DVDrip'
+                            ,'dvdrip'
                             ,'DVD-R'
                             ,'Webrip'
                             ,'PROPER'
@@ -71,12 +73,16 @@ movie_title_splitter    = [
                             ,']'
                             ,'_'
                             ,' - '
+                            ,'Criterion Collection'
+                            ,'Criterion 1080p'
+                            ,'REPACK'
                             ]
 movie_title_resolutions    = {'2160p': '2160p'
                             ,'1080i': '1080p'
                             ,'1080p': '1080p'
                             ,'1080': '1080p'
                             ,'720p': '720p'
+                            ,'480p': '480p'
                             ,'4k': '2160p'
                             ,'BluRay': '1080p'
                             ,'Blu-Ray': '1080p'
@@ -84,6 +90,8 @@ movie_title_resolutions    = {'2160p': '2160p'
                             ,'BDRIP': '1080p'
                             ,'DVDrip': '480p'
                             ,'DVD-R': '480p'
+                            ,'DVDR': '480p'
+                            ,'DVD': '480p'
                             ,'WEBrip': '480p'
                             }
 
@@ -319,9 +327,14 @@ def get_imdb_details_by_search_via_imdbpie(search):
 
 
 
-# Get imdb details using local imdbpie library
+# Get imdb details using local imdbpie and second by rapidapi library
 # ==============================================================================
 def get_imdb_id_by_name(folderpath):
+
+    imdb_id = None
+    first_imdb_id = None
+    second_imdb_id = None
+    grabbed_imdb = False
 
     # no need to decode in python 3
     if sys.version_info.major != 3:
@@ -329,27 +342,45 @@ def get_imdb_id_by_name(folderpath):
 
     folder, the_movie_name = os.path.split(folderpath)
 
+    print("\tSearching movie id imdbpie")
     search_name = get_clean_name_by_name(the_movie_name)
-    imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
+    first_imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
 
     if cfg.verbose:
-        print(imdb_object)
+        print(first_imdb_object)
 
-    if imdb_object != None:
-        imdb_id     = imdb_object.imdb_id
+    if first_imdb_object != None:
+        first_imdb_id     = first_imdb_object.imdb_id
+        imdb_id = first_imdb_id
         grabbed_imdb = True
-    else:
-        print("\tFirst IMDB search failed. Trying second search method via API")
-        imdb_object = get_imdb_details_by_search_via_rapidapi(search_name)
-        if imdb_object != None:
-            imdb_id     = imdb_object['id']
+        print("\tFound imdb_movie_id: " + first_imdb_id)
+
+
+    print("\tTrying second search method via rapidapi")
+    second_imdb_object = get_imdb_details_by_search_via_rapidapi(search_name)
+
+    if cfg.verbose:
+        print(second_imdb_object)
+
+    if second_imdb_object != None:
+        second_imdb_id     = second_imdb_object['id']
+        print("\tFound imdb_movie_id: " + second_imdb_id)
+        if grabbed_imdb == False:
+            imdb_id = second_imdb_id
             grabbed_imdb = True
-        else:
-            grabbed_imdb = False
-            print("\tCannot grab online IMDB data")
+
+    # decide between the two imdb ids
+    # if imdb ids are different choose the second_imdb_id
+
+    if (first_imdb_id != None and second_imdb_id != None and
+    first_imdb_id != second_imdb_id):
+        imdb_id = second_imdb_id
+
+
+    if imdb_id == None:
+        print("\tCannot grab imdb id from online IMDB data")
 
     return imdb_id
-
 
 # Get imdb details using local imdbpie library
 # ==============================================================================
@@ -401,7 +432,8 @@ def get_imdb_details_by_id_via_rapidapi(imdb_id):
 
     response = requests.request("GET", url, headers=headers)
 
-    print(response.text)
+    if cfg.verbose:
+        print(response.text)
 
     # get movie data from json
     data = json.loads(response.text)
@@ -434,6 +466,7 @@ def process_movie_folder(folderpath):
     found_multiple_xml = False
     grabbed_imdb = False
     grabbed_imdb_uncertain = False
+    broken_nfo = False
 
 
     # if folder is special ### type just ignore it
@@ -490,11 +523,17 @@ def process_movie_folder(folderpath):
             filepath = os.path.join(folderpath, file)
 
             # reding nfo file content
-            with open(filepath) as f:
-                nfo = f.read()
+            with open(filepath, "rt", encoding="utf-8") as f:
+                try:
+                    nfo = f.read()
+                except:
+                    nfo = None
+                    found_nfo = False
+                    broken_nfo = True
+
 
             # check for IMDB link and IMDB code in file
-            if ('imdb' in nfo) or ('IMDB' in nfo):
+            if nfo != None and (('imdb' in nfo) or ('IMDB' in nfo)):
 
                 # regexp searching for something like http://www.imdb.com/title/tt0064030
                 regex = "((?:https?://)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:/[\w\.-]*)*/?)"
@@ -516,9 +555,25 @@ def process_movie_folder(folderpath):
                 print("\tFound IMDB code: "+imdb_id)
 
 
+
+    # if no video and no nfo and no xml then Exiting
+
+    if (found_video == False and found_imdb == False):
+        print("\tNo video, no imdb in nfo: just rename to !!! and exit ")
+
+
+
     # done processing nfo file
     # if no IMDB data was found in nfo try to find it online
-    if found_imdb == False:
+    # only if video file exists
+    # even if the imdb_id was already found in nfo, perform the search anyway
+    # in order to later compare the results
+
+    if found_video == True and found_imdb == False:
+
+        movie_id_by_file = None
+        movie_id_by_folder = None
+        imdb_id = None
 
         # grab IMDB link by folder name
         print("\tSearching IMDB link by folder name: "+folderpath)
@@ -544,8 +599,10 @@ def process_movie_folder(folderpath):
 
         if movie_id_by_folder!= movie_id_by_file:
             print("\tWarning! Grabbed different IMDB ids from folder and file: ")
-            print("\t"+movie_id_by_folder+' '+folderpath)
-            print("\t"+movie_id_by_file+' '+video_file_name)
+            if movie_id_by_folder != None:
+                print("\t"+movie_id_by_folder+' '+folderpath)
+            if movie_id_by_file != None:
+                print("\t"+movie_id_by_file+' '+video_file_name)
             grabbed_imdb_uncertain = True
 
 
@@ -555,11 +612,13 @@ def process_movie_folder(folderpath):
 
     if found_imdb or grabbed_imdb:
 
-        imdb_object = get_imdb_details_by_id_via_imdbpie(imdb_id)
+        imdb_object      = get_imdb_details_by_id_via_imdbpie(imdb_id)
+        imdb_object_two  = get_imdb_details_by_id_via_rapidapi(imdb_id)
 
         if imdb_object != None:
             imdb_id     = imdb_object.imdb_id
-            imdb_title  = imdb_object.title
+            imdb_title  = imdb_object.title.lstrip().rstrip()
+
             imdb_link   = 'https://www.imdb.com/title/'+imdb_id+'/'
             if imdb_object.image:
                 imdb_image  = imdb_object.image.url
@@ -569,23 +628,33 @@ def process_movie_folder(folderpath):
             print("\tGrabbed IMDB code: "+imdb_id)
             print("\tGrabbed IMDB link: "+imdb_link)
 
+        if imdb_object_two != None:
+            imdb_title_en = imdb_object_two['title'].lstrip().rstrip()
+
+        # if first  different than second then second must be english version :)
+        if (imdb_title_en != "" and imdb_title.lower() != imdb_title_en.lower()):
+            imdb_title = imdb_title + ' ('+imdb_title_en+')'
+
 
 
 
     # prepare the tags
-    the_tags = get_movie_tags(imdb_id)
+    if imdb_id != None:
+        the_tags = get_movie_tags(imdb_id)
 
     # prepare the xml code with IMDB and tags and everything
 
     the_xml = "<movie>"
-    the_xml += "\n<imdb>"+imdb_link+"</imdb>"
-    the_xml += "\n<uniqueid type=\"\" default=\"true\">"+imdb_id+"</uniqueid>"
-    if imdb_title != "":
-        the_xml += "\n<title>"+imdb_title+"</title>"
-    if imdb_year !="":
-        the_xml += "\n<year>"+str(imdb_year)+"</year>"
-    if the_tags != "":
-        the_xml += the_tags
+
+    if imdb_id != None:
+        the_xml += "\n<imdb>"+imdb_link+"</imdb>"
+        the_xml += "\n<uniqueid type=\"\" default=\"true\">"+imdb_id+"</uniqueid>"
+        if imdb_title != "":
+            the_xml += "\n<title>"+imdb_title+"</title>"
+        if imdb_year !="":
+            the_xml += "\n<year>"+str(imdb_year)+"</year>"
+        if the_tags != "":
+            the_xml += the_tags
     the_xml += "\n</movie>"
 
     if sys.version_info.major != 3:
@@ -684,21 +753,21 @@ def process_movie_folder(folderpath):
             os.rename(old_nfo_path, new_nfo_path)
 
 
-    if imdb_image:
-        # download poster image to current folder
-        pfolder, pname = os.path.split(imdb_image)
-        r = requests.get(imdb_image, allow_redirects=True)
-        open(poster_file, 'wb').write(r.content)
-        print("\tWriting poster file: "+pname)
+        if imdb_image:
+            # download poster image to current folder
+            pfolder, pname = os.path.split(imdb_image)
+            r = requests.get(imdb_image, allow_redirects=True)
+            open(poster_file, 'wb').write(r.content)
+            print("\tWriting poster file: "+pname)
 
 
 
 
     # time to rename the folder
     # renaming the movie folder
+    # only if some video file exists !!!
 
-
-    if (cfg.do_folder_renaming and (found_imdb or grabbed_imdb)):
+    if found_video and (cfg.do_folder_renaming and (found_imdb or grabbed_imdb)):
 
         clean_name = imdb_title
         invalid = '<>:"/\|?*'
@@ -712,37 +781,51 @@ def process_movie_folder(folderpath):
 
         print("\tTrying to rename: " + clean_name)
 
-        if video_file_name:
-            if get_movie_resolution(video_file_name):
-                clean_name += ' - '+get_movie_resolution(video_file_name)
+
+        if get_movie_resolution(video_file_name):
+            clean_name += ' - ' + get_movie_resolution(video_file_name)
+            print("\tFound movie resolution by file: " + get_movie_resolution(video_file_name))
+        else:
+            if get_movie_resolution(os.path.basename(folderpath)):
+                clean_name += ' - ' + get_movie_resolution(os.path.basename(folderpath))
+                print("\tFound movie resolution by folder: " + get_movie_resolution(os.path.basename(folderpath)))
+
 
         folder, old_name = os.path.split(folderpath)
         new_folderpath = os.path.join(folder, clean_name)
         print("\tFrom: " + folderpath)
         print("\tTo: " + new_folderpath)
 
+
+        # only if the paths are different !!!
         # try to rename the folder
         # if the folder already exists (duplicate movies)
         # add a timestamp at the end of the folder name
 
-        folderpath_time = os.path.getmtime(folderpath)
-        folderpath_time = datetime.fromtimestamp(folderpath_time)
+        if (folderpath != new_folderpath):
 
-        r = None
-        while r is None:
-            try:
-                os.rename(folderpath, new_folderpath)
-                r = True
-            except:
-                dt_string = folderpath_time.strftime("%Y-%m-%d %H%M%S")
-                new_folderpath = new_folderpath + ' - ' + dt_string
-                pass
 
-        #keep for next stage (movie rename)
-        folderpath = new_folderpath
+            folderpath_time = os.path.getmtime(folderpath)
+            folderpath_time = datetime.fromtimestamp(folderpath_time)
 
-        print('\tClean renaming enabled.')
-        print('\tRenamed movie folder to: '+new_folderpath)
+            r = None
+            while r is None:
+                try:
+                    os.rename(folderpath, new_folderpath)
+                    r = True
+                except:
+                    dt_string = folderpath_time.strftime("%Y-%m-%d %H%M%S")
+                    new_folderpath = new_folderpath + ' - ' + dt_string
+                    pass
+
+            #keep for next stage (movie rename)
+            folderpath = new_folderpath
+
+            print('\tClean renaming enabled.')
+            print('\tRenamed movie folder to: '+new_folderpath)
+        else:
+            print('\tNo need to rename folder: '+new_folderpath)
+
 
 
     # mark the folder with ### in the front of the name
@@ -754,7 +837,8 @@ def process_movie_folder(folderpath):
     # or if multiple video files were detected
 
 
-    if (cfg.do_folder_alerting and (found_video == False
+    if (cfg.do_folder_alerting and (
+    found_video == False
     or found_nfo == False
     or found_imdb == False
     or found_xml == False
@@ -766,7 +850,9 @@ def process_movie_folder(folderpath):
         if (found_video == False
         or found_multiple_videos == True
         or found_multiple_xml == True
-        or grabbed_imdb_uncertain == True):
+        or grabbed_imdb_uncertain == True
+        or broken_nfo == True
+        or (found_imdb == False and grabbed_imdb== False)):
             alerting = '!!!'
 
         folder, old_name = os.path.split(folderpath)
@@ -776,28 +862,32 @@ def process_movie_folder(folderpath):
         new_folderpath = os.path.join(folder, new_name)
 
 
+        # only if the paths are different !!!
         # try to rename the folder
         # if the folder already exists (duplicate movies)
         # add a timestamp at the end of the folder name
 
-        folderpath_time = os.path.getmtime(folderpath)
-        folderpath_time = datetime.fromtimestamp(folderpath_time)
+        if (folderpath != new_folderpath):
 
-        r = None
-        while r is None:
-            try:
-                os.rename(folderpath, new_folderpath)
-                r = True
-            except:
-                dt_string = folderpath_time.strftime("%Y-%m-%d %H%M%S")
-                new_folderpath = new_folderpath + ' - ' + dt_string
-                pass
+            folderpath_time = os.path.getmtime(folderpath)
+            folderpath_time = datetime.fromtimestamp(folderpath_time)
 
-        #keep for next stage (movie rename)
-        folderpath = new_folderpath
+            r = None
+            while r is None:
+                try:
+                    os.rename(folderpath, new_folderpath)
+                    r = True
+                except:
+                    dt_string = folderpath_time.strftime("%Y-%m-%d %H%M%S")
+                    new_folderpath = new_folderpath + ' - ' + dt_string
+                    pass
 
-        print('\tUnsafe changes made, renaming movie folder to: ' + new_folderpath)
+            #keep for next stage (movie rename)
+            folderpath = new_folderpath
 
+            print('\tUnsafe changes made, renaming movie folder to: ' + new_folderpath)
+        else:
+            print('\tNo need to rename folder: '+new_folderpath)
 
 
 
@@ -835,16 +925,21 @@ try:
     #get_imdb_user_lists(cfg.imdb_user_id)
     #print(get_imdb_list_movies('ls098426190'))
 
-    # first we have to grab all user movies from lists / categories
-    # will use this later for tags
-    get_imdb_user_movies(cfg.imdb_user_id)
-
+    #rint(get_imdb_details_by_id_via_imdbpie('tt0050976'))
+    #print(get_imdb_details_by_id_via_rapidapi('tt0050976'))
     # print(imdb_list_array)
     # the_tags = get_movie_tags('tt0064276')
     # print(the_tags)
 
+    #print(get_imdb_id_by_name('The Pink Panther'))
+
+    # first we have to grab all user movies from lists / categories
+    # will use this later for tags
+    get_imdb_user_movies(cfg.imdb_user_id)
+
     # and now let's process and clean the movies folder
     process_all_folders(cfg.basedir)
+
 
 except Exception as e:
     errors = True

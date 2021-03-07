@@ -14,9 +14,15 @@
 - connects to IMDB and grabs some movie info
 - creates the IMDB XML into the existing nfo file or in a new nfo file
 - clean renames the movie folder like this: YYYY - The Movie Name - 1080p
+- if no video file exists in the folder it just prefixes the folder with !!!  
 
 
 ## VERSION HISTORY
+
+
+### v.0.0.8 @ 2021-03-07
+- do nothing, just a simple rename if no video file detected
+- also grab resolution from original folder name
 
 ### v.0.0.7 @ 2021-03-06
 - get_imdb_list_movies will now get movies fron export csv instead of scraping
@@ -24,6 +30,7 @@
 - new feature: when renaming folders keep in mind duplicate movies exists
 - renamed folders might add a timestamp to mark duplicates
 - new feature: grab (and compare) imdb movie id from both folder and file name
+- folder rename: added english title in () after original title
 
 ### v.0.0.6 @ 2021-03-06
 - converted the script code from python 2.7 to python 3.7
