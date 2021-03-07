@@ -466,8 +466,11 @@ def process_movie_folder(folderpath):
     found_multiple_xml = False
     grabbed_imdb = False
     grabbed_imdb_uncertain = False
+    imdb_uncertain = False
     broken_nfo = False
-
+    movie_id_by_file = None
+    movie_id_by_folder = None
+    grabbed_imdb_id = None
 
     # if folder is special ### type just ignore it
     if cfg.ignore_special_folders:
@@ -562,18 +565,14 @@ def process_movie_folder(folderpath):
         print("\tNo video, no imdb in nfo: just rename to !!! and exit ")
 
 
-
+    # GRABBING IMDB_ID !!!
     # done processing nfo file
     # if no IMDB data was found in nfo try to find it online
     # only if video file exists
     # even if the imdb_id was already found in nfo, perform the search anyway
     # in order to later compare the results
 
-    if found_video == True and found_imdb == False:
-
-        movie_id_by_file = None
-        movie_id_by_folder = None
-        imdb_id = None
+    if found_video == True:
 
         # grab IMDB link by folder name
         print("\tSearching IMDB link by folder name: "+folderpath)
@@ -588,11 +587,11 @@ def process_movie_folder(folderpath):
         # compare two movie ids
 
         if movie_id_by_folder != None:
-            imdb_id = movie_id_by_folder
+            grabbed_imdb_id = movie_id_by_folder
             grabbed_imdb = True
         else:
             if movie_id_by_file!= None:
-                imdb_id = movie_id_by_file
+                grabbed_imdb_id = movie_id_by_file
                 grabbed_imdb = True
             else:
                 grabbed_imdb = False
@@ -605,6 +604,18 @@ def process_movie_folder(folderpath):
                 print("\t"+movie_id_by_file+' '+video_file_name)
             grabbed_imdb_uncertain = True
 
+
+
+    if imdb_id and grabbed_imdb_id:
+        if imdb_id != grabbed_imdb_id:
+            imdb_uncertain = True
+            print("\tWARNING! Online grabbed IMDB id <> nfo found IMDB id !!!")
+
+
+    # choose the final imdb_id
+    if not found_imdb:
+        if grabbed_imdb:
+            imdb_id = grabbed_imdb_id
 
 
 
@@ -767,7 +778,7 @@ def process_movie_folder(folderpath):
     # renaming the movie folder
     # only if some video file exists !!!
 
-    if found_video and (cfg.do_folder_renaming and (found_imdb or grabbed_imdb)):
+    if not imdb_uncertain and found_video and (cfg.do_folder_renaming and (found_imdb or grabbed_imdb)):
 
         clean_name = imdb_title
         invalid = '<>:"/\|?*'
@@ -837,23 +848,24 @@ def process_movie_folder(folderpath):
     # or if multiple video files were detected
 
 
-    if (cfg.do_folder_alerting and (
-    found_video == False
-    or found_nfo == False
-    or found_imdb == False
-    or found_xml == False
-    or found_multiple_videos == True
-    or found_multiple_xml == True)):
+    alerting = None
+
+    if (found_nfo == False
+        or found_imdb == False
+        or found_xml == False):
 
         alerting = '###'
 
-        if (found_video == False
+    if (found_video == False
         or found_multiple_videos == True
         or found_multiple_xml == True
         or grabbed_imdb_uncertain == True
+        or imdb_uncertain == True
         or broken_nfo == True
         or (found_imdb == False and grabbed_imdb== False)):
             alerting = '!!!'
+
+    if (cfg.do_folder_alerting and alerting):
 
         folder, old_name = os.path.split(folderpath)
         new_name = old_name

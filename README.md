@@ -15,7 +15,7 @@
 - creates the IMDB XML into the existing nfo file or in a new nfo file
 - clean renames the movie folder like this: YYYY - The Movie Name - 1080p
 - if no video file exists in the folder it just prefixes the folder with !!!  
-
+- if imdb_id in found in nfo <> imdb_id grabbed online just prefixes the folder with !!!  
 
 ## VERSION HISTORY
 
@@ -23,6 +23,7 @@
 ### v.0.0.8 @ 2021-03-07
 - do nothing, just a simple rename if no video file detected
 - also grab resolution from original folder name
+- compare imdb_id in nfo with imdb_id grabbed online and alert !!! if different
 
 ### v.0.0.7 @ 2021-03-06
 - get_imdb_list_movies will now get movies fron export csv instead of scraping
