@@ -76,6 +76,7 @@ movie_title_splitter    = [
                             ,'Criterion Collection'
                             ,'Criterion 1080p'
                             ,'REPACK'
+                            ,'Complete Restored Edition'
                             ]
 movie_title_resolutions    = {'2160p': '2160p'
                             ,'1080i': '1080p'
