@@ -24,6 +24,8 @@
 - do nothing, just a simple rename if no video file detected
 - also grab resolution from original folder name
 - compare imdb_id in nfo with imdb_id grabbed online and alert !!! if different
+- implemeted new API from https://developers.themoviedb.org/3
+- getting the english name is now much much better 
 
 ### v.0.0.7 @ 2021-03-06
 - get_imdb_list_movies will now get movies fron export csv instead of scraping

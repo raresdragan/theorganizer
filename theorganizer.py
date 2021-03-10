@@ -23,6 +23,10 @@ from csv import reader
 from datetime import datetime
 imdb_list_array = []
 
+from tmdbv3api import TMDb
+from tmdbv3api import Movie
+
+
 
 
 # Kodi file formats: AVI, MPEG, WMV, ASF, FLV, MKV/MKA (Matroska), QuickTime, MP4, M4A, AAC, NUT, Ogg, OGM, RealMedia RAM/RM/RV/RA/RMVB, 3gp, VIVO, PVA, NUV, NSV, NSA, FLI, FLC, DVR-MS, WTV, TRP and F4V
@@ -57,10 +61,12 @@ movie_title_splitter    = [
                             ,'Blu-Ray'
                             ,'BRrip'
                             ,'BDrip'
+                            ,'BDRemux'
                             ,'DVDrip'
                             ,'dvdrip'
                             ,'DVD-R'
                             ,'Webrip'
+                            ,'xvid'
                             ,'PROPER'
                             ,'REMASTERED'
                             ,'x264'
@@ -77,6 +83,9 @@ movie_title_splitter    = [
                             ,'Criterion 1080p'
                             ,'REPACK'
                             ,'Complete Restored Edition'
+                            ,'Criterion'
+                            ,'READNFO'
+                            ,'SUBBED'
                             ]
 movie_title_resolutions    = {'2160p': '2160p'
                             ,'1080i': '1080p'
@@ -89,6 +98,7 @@ movie_title_resolutions    = {'2160p': '2160p'
                             ,'Blu-Ray': '1080p'
                             ,'BRRIP': '1080p'
                             ,'BDRIP': '1080p'
+                            ,'BDRemux': '1080p'
                             ,'DVDrip': '480p'
                             ,'DVD-R': '480p'
                             ,'DVDR': '480p'
@@ -343,7 +353,7 @@ def get_imdb_id_by_name(folderpath):
 
     folder, the_movie_name = os.path.split(folderpath)
 
-    print("\tSearching movie id imdbpie")
+    print("\tFirst: Searching movie via imdbpie")
     search_name = get_clean_name_by_name(the_movie_name)
     first_imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
 
@@ -356,8 +366,7 @@ def get_imdb_id_by_name(folderpath):
         grabbed_imdb = True
         print("\tFound imdb_movie_id: " + first_imdb_id)
 
-
-    print("\tTrying second search method via rapidapi")
+    print("\tSecond: Searching movie via rapidapi")
     second_imdb_object = get_imdb_details_by_search_via_rapidapi(search_name)
 
     if cfg.verbose:
@@ -375,13 +384,77 @@ def get_imdb_id_by_name(folderpath):
 
     if (first_imdb_id != None and second_imdb_id != None and
     first_imdb_id != second_imdb_id):
-        imdb_id = second_imdb_id
+        imdb_id = first_imdb_id
 
 
     if imdb_id == None:
         print("\tCannot grab imdb id from online IMDB data")
 
     return imdb_id
+
+
+
+
+def init_tmdb():
+    global tmdb
+    global tmdb_movie
+    global cfg
+
+    tmdb = TMDb()
+    tmdb.api_key = cfg.tmdb_api_key
+    tmdb.external_source='imdb_id'
+    tmdb_movie = Movie()
+
+# Get imdb details using online tmdb api
+# ==============================================================================
+def get_imdb_details_by_search_via_tmdb(search):
+
+    global cfg
+    imdb_object = {}
+
+    url ='https://api.themoviedb.org/3/search/movie?query='+urllib.parse.quote(search)+'&api_key='+cfg.tmdb_api_key+'&language=en-US&include_adult=false&append_to_response=trailers'
+    print(url)
+
+    response = urlopen(url)
+    body = response.read()
+    data = json.loads(body)
+
+    if cfg.verbose:
+        print(data)
+
+    imdb_object = data['results'][0]
+
+    if cfg.verbose:
+        print('First search result:')
+        print(imdb_object)
+
+    return imdb_object
+
+
+# Get imdb details using online tmdb api
+# ==============================================================================
+def get_imdb_details_by_id_via_tmdb(imdb_id):
+
+    global cfg
+    imdb_object = {}
+
+    url ='https://api.themoviedb.org/3/find/'+imdb_id+'?api_key='+cfg.tmdb_api_key+'&language=en-US&external_source=imdb_id'
+    response = urlopen(url)
+    body = response.read()
+    data = json.loads(body)
+
+    try:
+        imdb_object['original_title']= data['movie_results'][0]['original_title']
+        imdb_object['title'] = data['movie_results'][0]['title']
+    except:
+        return None
+
+    if cfg.verbose:
+        print(imdb_object)
+
+
+    return imdb_object
+
 
 # Get imdb details using local imdbpie library
 # ==============================================================================
@@ -457,6 +530,7 @@ def process_movie_folder(folderpath):
     imdb_id = ""
     imdb_link = ""
     imdb_title = ""
+    imdb_title_en = ""
     imdb_image = ""
     imdb_year = ""
     found_nfo = False
@@ -624,8 +698,9 @@ def process_movie_folder(folderpath):
 
     if found_imdb or grabbed_imdb:
 
-        imdb_object      = get_imdb_details_by_id_via_imdbpie(imdb_id)
-        imdb_object_two  = get_imdb_details_by_id_via_rapidapi(imdb_id)
+        imdb_object = get_imdb_details_by_id_via_imdbpie(imdb_id)
+        imdb_object_rapidapi = get_imdb_details_by_id_via_rapidapi(imdb_id)
+        imdb_object_tmdb = get_imdb_details_by_id_via_tmdb(imdb_id)
 
         if imdb_object != None:
             imdb_id     = imdb_object.imdb_id
@@ -637,14 +712,26 @@ def process_movie_folder(folderpath):
             imdb_year   = imdb_object.year
             # remember to mark grabbed_imdb = True
             # not sure grabbed info is correct so force a manual check
-            print("\tGrabbed IMDB code: "+imdb_id)
-            print("\tGrabbed IMDB link: "+imdb_link)
+            print("\tGrabbed IMDBpie code: " + imdb_id)
+            print("\tGrabbed IMDBpie link: " + imdb_link)
+            print("\tGrabbed IMDBpie title: " + imdb_title)
 
-        if imdb_object_two != None:
-            imdb_title_en = imdb_object_two['title'].lstrip().rstrip()
+
+        imdb_title_en = ""
+
+        if imdb_object_tmdb != None:
+            tmdb_title_en = imdb_object_tmdb['title']
+            tmdb_title_en = tmdb_title_en.lstrip().rstrip()
+            tmdb_title_original = imdb_object_tmdb['original_title']
+            tmdb_title_original = tmdb_title_original.lstrip().rstrip()
+            print("\tGrabbed tmdb english title: " + tmdb_title_en)
+            print("\tGrabbed tmdb original title: " + tmdb_title_original)
+
+            if tmdb_title_en.lower() != imdb_title.lower():
+                imdb_title_en = tmdb_title_en
 
         # if first  different than second then second must be english version :)
-        if (imdb_title_en != "" and imdb_title.lower() != imdb_title_en.lower()):
+        if (imdb_title_en != ""):
             imdb_title = imdb_title + ' ('+imdb_title_en+')'
 
 
@@ -946,13 +1033,18 @@ try:
 
     #print(get_imdb_id_by_name('The Pink Panther'))
 
+
+    # init_tmdb()
+    # get_imdb_details_by_id_via_tmdb('tt0053134')
+
+    #get_imdb_details_by_search_via_tmdb('diaboliques')
+
     # first we have to grab all user movies from lists / categories
     # will use this later for tags
     get_imdb_user_movies(cfg.imdb_user_id)
 
     # and now let's process and clean the movies folder
     process_all_folders(cfg.basedir)
-
 
 except Exception as e:
     errors = True
