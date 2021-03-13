@@ -2,6 +2,29 @@
 ## A python movie collection organiser
 ## by Rares Dragan (@raresdragan, www.raresdragan.com)
 
+
+## HOW TO USE This
+
+osmc@osmc:~$ python3 theorganizer/theorganizer.py --help
+usage: theorganizer.py [-h] [--cleanup] [--skip] [--noalert] [--folder FOLDER]
+                       [--move MOVE]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --cleanup, -c         Perform a folder cleanup, removing all special folder
+                        markings ($ # @ !)
+  --skip, -s            Skip imdb folders processing. Do anything else (e.g.
+                        cleanup if called)
+  --noalert, -n         Don't do any folder alerts renaming (no !@#$ in the
+                        folder names).
+  --folder FOLDER, -f FOLDER
+                        Define main movies folder (containing movies in sub-
+                        folders)
+  --move MOVE, -m MOVE  Define destination movies folder. Move all folders
+                        from Main folder to destination while taking care of
+                        duplicates renaming
+
+
 ## WHEN TO USE THIS
 - If you have an archive of movies and the folder names are quite messy
 - If you are using **Kodi** or **Plex** or **AppleTV** and it keeps wrongly identifying some of your movies
@@ -19,13 +42,19 @@
 
 ## VERSION HISTORY
 
+### v.0.0.9 @ 2021-03-14
+- major updates
+- command line arguments for cleanup noprocessing and folder name
+- fixed renaming issues on exfat (case insensitive ccrashed the rename)
+- marking duplicates with DUPLICATE
+- etc
 
 ### v.0.0.8 @ 2021-03-07
 - do nothing, just a simple rename if no video file detected
 - also grab resolution from original folder name
 - compare imdb_id in nfo with imdb_id grabbed online and alert !!! if different
 - implemeted new API from https://developers.themoviedb.org/3
-- getting the english name is now much much better 
+- getting the english name is now much much better
 
 ### v.0.0.7 @ 2021-03-06
 - get_imdb_list_movies will now get movies fron export csv instead of scraping

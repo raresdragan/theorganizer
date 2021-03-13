@@ -1,5 +1,5 @@
 ## The Organizer
-## A python movie collection organiser
+## A python (3.7) movie collection organiser
 ## by Rares Dragan (www.raresdragan.com) (https://github.com/raresdragan)
 
 import os
@@ -14,6 +14,9 @@ import time
 import glob
 import logging
 import config as cfg
+
+# Include parse arguments modules
+import argparse
 
 # setup imdb connection via imdbpie
 
@@ -85,6 +88,8 @@ movie_title_splitter    = [
                             ,'Criterion 1080p'
                             ,'REPACK'
                             ,'Complete Restored Edition'
+                            ,'Collectors Edition'
+                            ,'Uncut Version'
                             ,'Criterion'
                             ,'READNFO'
                             ,'SUBBED'
@@ -125,8 +130,8 @@ def get_imdb_user_lists(imdb_user_id):
     url = 'https://www.imdb.com/user/%s/lists' % (imdb_user_id)
 
 
-    logging.info("\tGrabbing %s user's lists from imdb.com" % imdb_user_id)
-    logging.info("\t" + url)
+    logging.info("Grabbing %s user's lists from imdb.com" % imdb_user_id)
+    logging.info("" + url)
 
     response = urlopen(url)
     body = response.read()
@@ -151,7 +156,7 @@ def get_imdb_user_lists(imdb_user_id):
             the_ids.append(obj)
 
 
-    logging.debug('\tFetching user lists completed!')
+    logging.debug('Fetching user lists completed!')
     logging.debug(the_ids)
 
     return the_ids
@@ -169,7 +174,7 @@ def get_imdb_list_movies(imdb_list_id):
     else:
         return
 
-    logging.info('\tFetching movies from imdb list export file: '+url)
+    logging.info('Fetching movies from imdb list export file: '+url)
 
     response = urllib.request.urlopen(url)
     body = response.read()
@@ -199,7 +204,7 @@ def get_imdb_list_movies(imdb_list_id):
             the_ids.append(found)
 
     if cfg.verbose:
-        logging.debug('\tFetching movies from list completed!')
+        logging.debug('Fetching movies from list completed!')
         logging.debug(the_ids)
 
     return the_ids
@@ -212,7 +217,7 @@ def get_imdb_user_movies(imdb_user_id):
 
         global imdb_list_array
 
-        logging.info("\tGetting watchlist movies from IMDB for user: " + imdb_user_id)
+        logging.info("Getting watchlist movies from IMDB for user: " + imdb_user_id)
         # get all user public lists
         # obtain list id and list name
 
@@ -242,29 +247,29 @@ def get_movie_tags(imdb_movie_id):
     global imdb_list_array
     the_tags = ""
 
-    logging.info('\tGenerating movie <tags> for: ' + imdb_movie_id)
+    logging.info('Generating movie <tags> for: ' + imdb_movie_id)
 
     if cfg.verbose:
         logging.debug('The IMDB lists array looks like this:')
         logging.debug(imdb_list_array)
 
-    logging.info('\tSearching for the movie in the imdb lists...')
+    logging.info('Searching for the movie in the imdb lists...')
 
     count = 0
     for list in imdb_list_array:
         for id in list[2]:
             if cfg.verbose:
-                logging.debug('\tChecking id: ' + id)
+                logging.debug('Checking id: ' + id)
             if id == imdb_movie_id:
                 if cfg.verbose:
-                    logging.debug('\t Found '+ id +' movie in:')
+                    logging.debug(' Found '+ id +' movie in:')
                     logging.debug(list[0])
                     logging.debug(list[1])
                     logging.debug(list[2])
                 the_tags += "\n<tag>" + str(list[1]) + "</tag>"
                 count += 1
 
-    logging.info('\tFound the movie in '+str(count)+' imdb lists!')
+    logging.info('Found the movie in '+str(count)+' imdb lists!')
     if cfg.verbose:
         logging.debug('The <tags> for: ' + imdb_movie_id + ' are: ')
         logging.debug(the_tags)
@@ -294,9 +299,6 @@ def get_clean_name_by_name(the_movie_name):
     for replacer in movie_title_specials:
         the_movie_name = the_movie_name.replace(replacer, ' ')
 
-    # replace everything that is not letter or number
-    the_movie_name = re.sub('[^A-Za-z0-9]+', ' ', the_movie_name)
-
     double_space = True
     while double_space:
         if ('  ' in the_movie_name):
@@ -322,8 +324,12 @@ def get_clean_name_by_name(the_movie_name):
     if split_pos !=0:
         the_movie_name = the_movie_name[: split_pos]
 
+    # replace everything that is not letter or number
+    #the_movie_name = re.sub('[^A-Za-z0-9]+', ' ', the_movie_name)
+    # but keep accented letters french / etc
+    the_movie_name = re.sub('[^A-Za-z0-9À-ÖØ-öø-ÿЀ-ӿ/]+', ' ', the_movie_name)
 
-    logging.info("\tDetected movie name: " + the_movie_name)
+    logging.info("Clean movie name: " + the_movie_name)
     return the_movie_name
 
 
@@ -363,7 +369,7 @@ def get_imdb_id_by_name(folderpath):
 
     folder, the_movie_name = os.path.split(folderpath)
 
-    logging.info("\tFirst: Searching movie via imdbpie")
+    logging.info("First: Searching movie via imdbpie")
     search_name = get_clean_name_by_name(the_movie_name)
     first_imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
 
@@ -374,9 +380,9 @@ def get_imdb_id_by_name(folderpath):
         first_imdb_id     = first_imdb_object.imdb_id
         imdb_id = first_imdb_id
         grabbed_imdb = True
-        logging.info("\tFound imdb_movie_id: " + first_imdb_id)
+        logging.info("Found imdb_movie_id: " + first_imdb_id)
 
-    logging.info("\tSecond: Searching movie via rapidapi")
+    logging.info("Second: Searching movie via rapidapi")
     second_imdb_object = get_imdb_details_by_search_via_rapidapi(search_name)
 
     if cfg.verbose:
@@ -384,7 +390,7 @@ def get_imdb_id_by_name(folderpath):
 
     if second_imdb_object != None:
         second_imdb_id     = second_imdb_object['id']
-        logging.info("\tFound imdb_movie_id: " + second_imdb_id)
+        logging.info("Found imdb_movie_id: " + second_imdb_id)
         if grabbed_imdb == False:
             imdb_id = second_imdb_id
             grabbed_imdb = True
@@ -398,7 +404,7 @@ def get_imdb_id_by_name(folderpath):
 
 
     if imdb_id == None:
-        logging.info("\tCannot grab imdb id from online IMDB data")
+        logging.info("Cannot grab imdb id from online IMDB data")
 
     return imdb_id
 
@@ -478,7 +484,7 @@ def get_imdb_details_by_id_via_imdbpie(imdb_id):
 def get_imdb_details_by_search_via_rapidapi(search):
 
 
-    logging.info("\tGet IMDB details by search via rapidapi: " + search)
+    logging.info("Get IMDB details by search via rapidapi: " + search)
 
     url = "https://imdb-internet-movie-database-unofficial.p.rapidapi.com/search/" + search
 
@@ -496,7 +502,7 @@ def get_imdb_details_by_search_via_rapidapi(search):
     try:
         # get info for the first movie in the json
         for d in titles:
-            logging.info("\tGot IMDB id: " + d['id'])
+            logging.info("Got IMDB id: " + d['id'])
             return d
     except:
         return None
@@ -505,7 +511,7 @@ def get_imdb_details_by_search_via_rapidapi(search):
 # ==============================================================================
 def get_imdb_details_by_id_via_rapidapi(imdb_id):
 
-    logging.info("\tGet IMDB details by id via rapidapi: " + imdb_id)
+    logging.info("Get IMDB details by id via rapidapi: " + imdb_id)
 
     url = "https://imdb-internet-movie-database-unofficial.p.rapidapi.com/film/" + imdb_id
 
@@ -537,7 +543,7 @@ def get_imdb_details_by_id_via_rapidapi(imdb_id):
 def fix_orphan_files(basepath):
 
     global video_extensions
-    logging.info('\tFixing orphan files in: '+basepath)
+    logging.info('Fixing orphan files in: '+basepath)
 
     os.chdir(basepath)
 
@@ -556,7 +562,7 @@ def fix_orphan_files(basepath):
         extra_files = glob.glob(os.path.splitext(file)[0]+'.*')
 
         logging.info('\nFile: \t'+file)
-        logging.info('\t=============================================================================')
+        logging.info('=============================================================================')
 
         # create temp folder path
         file_path = os.path.join(basepath, file)
@@ -565,12 +571,12 @@ def fix_orphan_files(basepath):
 
         # move file to temp folder
         os.rename(os.path.join(basepath, file),os.path.join(tmp_folder_path, file))
-        logging.info('\tMoved video file to: ' + file)
+        logging.info('Moved video file to: ' + file)
 
         for extra_file in extra_files:
             if extra_file != file and extra_file not in video_files_grabbed:
                 os.rename(os.path.join(basepath, extra_file),os.path.join(tmp_folder_path, extra_file))
-                logging.info('\tMoved extra file: '+extra_file)
+                logging.info('Moved extra file: '+extra_file)
 
 
         # rename tmp folder
@@ -581,7 +587,7 @@ def fix_orphan_files(basepath):
             os.rename(tmp_folder_path, new_folder_path+' '+str(time.time()))
 
 
-        logging.info('\tCreated new movie folder: '+new_folder_path)
+        logging.info('Created new movie folder: '+new_folder_path)
 
 # process files in folderpath
 # if nfo is found, parse it for IMDB link
@@ -611,12 +617,16 @@ def process_movie_folder(folderpath):
     movie_id_by_file = None
     movie_id_by_folder = None
     grabbed_imdb_id = None
+    renamed_folder = False
+    renamed_failed = False
+    marked_folder = False
+    marked_failed = False
 
     # if folder is special ### type just ignore it
     if cfg.ignore_special_folders:
         tfolder, tname = os.path.split(folderpath)
-        if tname[: 2] == '# ' or tname[: 2] == '! ':
-            logging.info("\tFound special "+tname[: 2]+" folder path. Exiting without processing it.")
+        if tname[: 2] == '$ ' or tname[: 2] == '# ' or tname[: 2] == '@ ' or tname[: 2] == '! ':
+            logging.info("Found special "+tname[: 2]+" folder path. Exiting without processing it.")
             return
 
     # GET VIDEO FILE !!!
@@ -635,78 +645,86 @@ def process_movie_folder(folderpath):
             if ((file.endswith(extension) or file.endswith(extension.upper())) and not file.startswith('.')):
                 if found_video != True:
                     video_file_name = file
-                    logging.info('\tFound video file: '+file)
+                    logging.info('Found video file: '+file)
                     found_video = True
                 else:
                     found_multiple_videos = True
 
     if found_video == False:
-        logging.warning('\tNo video file found!')
+        logging.warning('No video file found!')
 
     if found_multiple_videos == True:
-        logging.warning('\tMultimple video files found!')
+        logging.warning('Multimple video files found!')
 
-    # GET NFO FILE !!!
+    # GET NFO FILE(S) !!!
     # now check all files in the folder for nfo file
 
-    for file in os.listdir(folderpath):
+    os.chdir(folderpath)
+    found_nfo == False
 
-        os.chdir(folderpath)
+    nfo_files = []
+    nfo_files = glob.glob('*.nfo')
+    nfo_files.extend(glob.glob('*.NFO'))
 
-        # one nfo file is enough
-        if found_nfo == True:
-            found_nfo_duplicate = True
-            logging.warning('\tWarning: Found multiple nfo files!')
-            break
+    logging.debug('nfo_files:')
+    logging.debug(nfo_files)
 
-        if file.endswith('.nfo') and not file.startswith('.'):
+    if len(nfo_files)<=0:
+        logging.warning('Warning: No nfo files found')
 
-            found_nfo = True
-            nfo_file = file
-            logging.info('\tFound nfo file: '+file)
+    if len(nfo_files)>1:
+        found_multiple_nfo = True
+        logging.warning('Warning: Found multiple nfo files! ('+os.path.basename(folderpath)+')')
 
-            # get nfo file contents
-            filepath = os.path.join(folderpath, file)
+    if len(nfo_files)>=1:
 
-            # reding nfo file content
-            with open(filepath, "rt", encoding="utf-8", errors="ignore") as f:
+        found_nfo = True
+        nfo_file = nfo_files[0]
 
-                try:
-                    nfo = f.read()
-                except:
-                    nfo = None
-                    found_nfo = False
-                    found_broken_nfo = True
+        logging.info('Found nfo file: '+nfo_file)
 
+        # get nfo file contents
+        filepath = os.path.join(folderpath, nfo_file)
 
-            # check for IMDB link and IMDB code in file
-            if nfo != None and (('imdb' in nfo) or ('IMDB' in nfo)):
+        # reding nfo file content
+        with open(filepath, "rt", encoding="utf-8", errors="ignore") as f:
 
-                # regexp searching for something like http://www.imdb.com/title/tt0064030
-                regex = "((?:https?://)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:/[\w\.-]*)*/?)"
-
-                imdb_link = ""
-                matches = re.findall(regex, nfo)
-                for match in matches:
-                    if ('imdb' in match):
-                        imdb_link = match
-                        idmatches = re.findall("tt\d+", imdb_link)
-                        for idmatch in idmatches:
-                            imdb_id = idmatch
-                            break
+            try:
+                nfo = f.read()
+            except:
+                nfo = None
+                found_nfo = False
+                found_broken_nfo = True
 
 
-            if (imdb_link != ""):
-                found_imdb = True
-                logging.info("\tFound nfo IMDB link: "+imdb_link)
-                logging.info("\tFound nfo IMDB id: "+imdb_id)
+        # check for IMDB link and IMDB code in file
+        if nfo != None and (('imdb' in nfo) or ('IMDB' in nfo)):
+
+            # regexp searching for something like http://www.imdb.com/title/tt0064030
+            regex = "((?:https?://)?(?:(?:www\.)?(?:[\da-z\.-]+)\.(?:[a-z]{2,6})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(?:(?:[0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,7}:|(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:(?:(?::[0-9a-fA-F]{1,4}){1,6})|:(?:(?::[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(?::[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(?:ffff(?::0{1,4}){0,1}:){0,1}(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])|(?:[0-9a-fA-F]{1,4}:){1,4}:(?:(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(?:25[0-5]|(?:2[0-4]|1{0,1}[0-9]){0,1}[0-9])))(?::[0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])?(?:/[\w\.-]*)*/?)"
+
+            imdb_link = ""
+            matches = re.findall(regex, nfo)
+            for match in matches:
+                if ('imdb' in match):
+                    imdb_link = match
+                    idmatches = re.findall("tt\d+", imdb_link)
+                    for idmatch in idmatches:
+                        imdb_id = idmatch
+                        break
+
+
+        if (imdb_link != ""):
+            found_imdb = True
+            logging.info("Found nfo IMDB link: "+imdb_link)
+            logging.info("Found nfo IMDB id: "+imdb_id)
 
 
 
     # if no video and no nfo and no xml then Exiting
 
     if (found_video == False and found_imdb == False):
-        logging.warning("\tNo video, no imdb in nfo: just rename to !!! and exit ")
+        logging.warning("No video, no imdb in nfo: just rename to !!! and exit ")
 
 
     # GRABBING IMDB_ID !!!
@@ -719,13 +737,13 @@ def process_movie_folder(folderpath):
     if found_video == True:
 
         # grab IMDB link by folder name
-        logging.info("\tSearching IMDB link by folder name: "+folderpath)
+        logging.info("Searching IMDB link by folder name: "+folderpath)
         movie_id_by_folder = get_imdb_id_by_name(folderpath)
 
         # grab IMDB link by file name
 
         if found_video == True:
-            logging.info("\tSearching IMDB link by file name: "+video_file_name)
+            logging.info("Searching IMDB link by file name: "+video_file_name)
             movie_id_by_file = get_imdb_id_by_name(video_file_name)
 
         # compare two movie ids
@@ -741,11 +759,11 @@ def process_movie_folder(folderpath):
                 grabbed_imdb = False
 
         if movie_id_by_folder!= movie_id_by_file:
-            logging.warning("\tWarning! Grabbed different IMDB ids from folder and file: ")
+            logging.warning("Warning! Grabbed different IMDB ids from folder and file: ")
             if movie_id_by_folder != None:
-                logging.info("\t"+movie_id_by_folder+' '+folderpath)
+                logging.info(""+movie_id_by_folder+' '+folderpath)
             if movie_id_by_file != None:
-                logging.info("\t"+movie_id_by_file+' '+video_file_name)
+                logging.info(""+movie_id_by_file+' '+video_file_name)
             grabbed_imdb_uncertain = True
 
 
@@ -753,7 +771,7 @@ def process_movie_folder(folderpath):
     if imdb_id and grabbed_imdb_id:
         if imdb_id != grabbed_imdb_id:
             imdb_uncertain = True
-            logging.warning("\tWARNING! Online grabbed IMDB id <> nfo found IMDB id !!!")
+            logging.warning("WARNING! Online grabbed IMDB id <> nfo found IMDB id !!!")
 
 
     # choose the final imdb_id
@@ -781,9 +799,9 @@ def process_movie_folder(folderpath):
             imdb_year   = imdb_object.year
             # remember to mark grabbed_imdb = True
             # not sure grabbed info is correct so force a manual check
-            logging.info("\tGrabbed IMDBpie code: " + imdb_id)
-            logging.info("\tGrabbed IMDBpie link: " + imdb_link)
-            logging.info("\tGrabbed IMDBpie title: " + imdb_title)
+            logging.info("Grabbed IMDBpie code: " + imdb_id)
+            logging.info("Grabbed IMDBpie link: " + imdb_link)
+            logging.info("Grabbed IMDBpie title: " + imdb_title)
 
 
         imdb_title_en = ""
@@ -793,8 +811,8 @@ def process_movie_folder(folderpath):
             tmdb_title_en = tmdb_title_en.lstrip().rstrip()
             tmdb_title_original = imdb_object_tmdb['original_title']
             tmdb_title_original = tmdb_title_original.lstrip().rstrip()
-            logging.info("\tGrabbed tmdb english title: " + tmdb_title_en)
-            logging.info("\tGrabbed tmdb original title: " + tmdb_title_original)
+            logging.info("Grabbed tmdb english title: " + tmdb_title_en)
+            logging.info("Grabbed tmdb original title: " + tmdb_title_original)
 
             if tmdb_title_en.lower() != imdb_title.lower():
                 imdb_title_en = tmdb_title_en
@@ -845,21 +863,21 @@ def process_movie_folder(folderpath):
             matches = re.findall(regex, nfo)
 
             for old_xml in matches:
-                logging.info("\tGreat news: Found movie XML tags in nfo !!!")
+                logging.info("Great news: Found movie XML tags in nfo !!!")
                 if found_xml != True:
                     found_xml = True
 
                 else:
                     found_multiple_xml = True
-                    logging.warning("\tBad news: Found multiple movie XML tags in nfo !!!")
+                    logging.warning("Bad news: Found multiple movie XML tags in nfo !!!")
 
 
         if (found_xml == False):
 
-            logging.warning('\tnfo file without movie XML info !!!')
+            logging.warning('nfo file without movie XML info !!!')
             # edit nfo file and add <movie><tag> info
 
-            logging.info("\tAdding movies XML to existing nfo file: " + os.path.basename(filepath))
+            logging.info("Adding movies XML to existing nfo file: " + os.path.basename(filepath))
             # open the input file in write mode
             # write xml in front of the nfo text
             f = open(filepath, "wt")
@@ -872,7 +890,7 @@ def process_movie_folder(folderpath):
             # first check if force rewrire is enabled
             if (cfg.force_rewrite_xml == True):
 
-                logging.info("\tUpdating movie XML to existing nfo file: " + os.path.basename(filepath))
+                logging.info("Updating movie XML to existing nfo file: " + os.path.basename(filepath))
                 #open the input file in write mode
                 f = open(filepath, "wt")
                 #overrite the input file with the resulting data
@@ -886,7 +904,7 @@ def process_movie_folder(folderpath):
         if found_video:
 
             # no nfo file found, try to create one
-            logging.info('\tCouldn\'t find nfo file. Creating new nfo file!')
+            logging.info('Couldn\'t find nfo file. Creating new nfo file!')
 
             # rename
             pre, ext = os.path.splitext(video_file_name)
@@ -896,7 +914,7 @@ def process_movie_folder(folderpath):
             f.close()
 
             # no nfo file found, try to create one
-            logging.info('\tWrote new nfo file:' + nfo_file)
+            logging.info('Wrote new nfo file:' + nfo_file)
 
 
 
@@ -911,22 +929,26 @@ def process_movie_folder(folderpath):
         poster_file = vid_pre+'-poster.jpg'
 
         if (nfo_pre != vid_pre):
-
+            logging.info('Comparing nfo and video names:')
+            logging.info(nfo_pre)
+            logging.info(vid_pre)
             old_nfo_path = os.path.join(folderpath, nfo_file)
             new_nfo_path = os.path.join(folderpath, vid_pre+'.nfo')
             nfo_file = vid_pre+'.nfo'
-            logging.info('\tnfo and video file names are different: Renaming nfo')
-            logging.info('\tfrom: ' + old_nfo_path)
-            logging.info('\tto: ' + new_nfo_path)
-            os.rename(old_nfo_path, new_nfo_path)
-
+            logging.info('nfo and video file names are different: Renaming nfo')
+            logging.info('from: \t' + os.path.basename(old_nfo_path))
+            logging.info('to: \t' + os.path.basename(new_nfo_path))
+            if (old_nfo_path != new_nfo_path):
+                # use intermediary name to be able to rename this.file1080 to This.File1080
+                os.rename(old_nfo_path, old_nfo_path+'.tmp')
+                os.rename(old_nfo_path+'.tmp', new_nfo_path)
 
         if imdb_image:
             # download poster image to current folder
             pfolder, pname = os.path.split(imdb_image)
             r = requests.get(imdb_image, allow_redirects=True)
             open(poster_file, 'wb').write(r.content)
-            logging.info("\tWriting poster file: "+pname)
+            logging.info("Writing poster file: "+pname)
 
 
 
@@ -936,6 +958,8 @@ def process_movie_folder(folderpath):
     # only if some video file exists !!!
 
     if not imdb_uncertain and found_video and (cfg.do_folder_renaming and (found_imdb or grabbed_imdb)):
+
+        logging.info('Clean renaming enabled.')
 
         clean_name = imdb_title
         invalid = '<>:"/\|?*'
@@ -947,19 +971,16 @@ def process_movie_folder(folderpath):
 
         clean_name = str(imdb_year)+' - '+str(clean_name)
 
-        logging.info("\tTrying to rename: " + clean_name)
-
-
         video_resolution = get_movie_resolution(video_file_name)
 
         if video_resolution != None:
             clean_name += ' - ' + video_resolution
-            logging.info("\tFound movie resolution by file: " + video_resolution)
+            logging.info("Found movie resolution by file: " + video_resolution)
         else:
             video_resolution = get_movie_resolution(os.path.basename(folderpath))
             if video_resolution:
                 clean_name += ' - ' + video_resolution
-                logging.info("\tFound movie resolution by folder: " + video_resolution)
+                logging.info("Found movie resolution by folder: " + video_resolution)
 
 
         # get video file size and use it in folder name to mark lowres
@@ -967,7 +988,7 @@ def process_movie_folder(folderpath):
         if cfg.do_mark_hires == True and video_resolution != None:
             video_path = os.path.join(folderpath, video_file_name)
             video_size = os.path.getsize(video_path)
-            logging.info('\tvideo file size: ' + str(video_size))
+            logging.info('Video file size: ' + str(video_size))
 
             for key in video_file_hires_table:
                 if key.lower() in video_resolution.lower():
@@ -979,8 +1000,9 @@ def process_movie_folder(folderpath):
 
         folder, old_name = os.path.split(folderpath)
         new_folderpath = os.path.join(folder, clean_name)
-        logging.info("\tFrom: " + folderpath)
-        logging.info("\tTo: " + new_folderpath)
+        logging.info('Old folder name versus new folder name:')
+        logging.info("From: \t" + folderpath)
+        logging.info("To: \t" + new_folderpath)
 
 
         # only if the paths are different !!!
@@ -990,25 +1012,34 @@ def process_movie_folder(folderpath):
 
         if (folderpath != new_folderpath):
 
-
-            folderpath_time = os.path.getmtime(folderpath)
-            folderpath_time = datetime.fromtimestamp(folderpath_time)
-            dt_string = folderpath_time.strftime("%Y-%m-%d %H%M%S")
+            logging.info('Old and new names are different. Renaming!')
+            duplicate_folderpath = new_folderpath+' DUPLICATE '+str(time.time())
+            tmp_folderpath = new_folderpath+' TMP '+str(time.time())
 
             try:
-                os.rename(folderpath, new_folderpath)
-                r = True
+                os.rename(folderpath, tmp_folderpath)
+                os.rename(tmp_folderpath, new_folderpath)
+                renamed_folder = True
+                #keep for next stage (movie rename)
+                folderpath = new_folderpath
             except:
-                os.rename(folderpath, new_folderpath+' '+dt_string)
+                try:
+                    os.rename(folderpath, duplicate_folderpath)
+                    new_folderpath = duplicate_folderpath
+                    renamed_folder = True
+                    #keep for next stage (movie rename)
+                    folderpath = new_folderpath
+                except:
+                    renamed_folder = False
+                    renamed_failed = True
 
+            if renamed_folder:
+                logging.info('Renamed movie folder to: '+new_folderpath)
+            else:
+                logging.info('Failed to rename movie folder to: '+new_folderpath)
 
-            #keep for next stage (movie rename)
-            folderpath = new_folderpath
-
-            logging.info('\tClean renaming enabled.')
-            logging.info('\tRenamed movie folder to: '+new_folderpath)
         else:
-            logging.info('\tNo need to rename folder: '+new_folderpath)
+            logging.info('No need to rename the movie folder: '+new_folderpath)
 
 
 
@@ -1020,13 +1051,11 @@ def process_movie_folder(folderpath):
     # if no video in folder
     # or if multiple video files were detected
 
-
-    alerting = None
+    alerting = '$ '
 
     if (found_nfo == False
         or found_imdb == False
         or found_xml == False):
-
         alerting = '# '
 
     if (found_video == False
@@ -1034,18 +1063,26 @@ def process_movie_folder(folderpath):
         or found_multiple_xml == True
         or found_multiple_nfo == True
         or found_broken_nfo == True
-        or grabbed_imdb_uncertain == True
-        or imdb_uncertain == True
+        or grabbed_imdb_uncertain == True):
+        alerting = '@ '
 
+    if (found_video == False
+        or imdb_uncertain == True
+        or renamed_failed == True
         or (found_imdb == False and grabbed_imdb== False)):
-            alerting = '! '
+        alerting = '! '
+
 
     if (cfg.do_folder_alerting and alerting):
 
+        logging.warning('Marking the folder name with alert: '+alerting)
         folder, old_name = os.path.split(folderpath)
         new_name = old_name
-        if (old_name[0:2] != '# ' and old_name[0:2] != '! '):
-            new_name = alerting+old_name
+        # if (old_name[0:2] != '$ '
+        # and old_name[0:2] != '# '
+        # and old_name[0:2] != '@ '
+        # and old_name[0:2] != '! '):
+        new_name = alerting+old_name
         new_folderpath = os.path.join(folder, new_name)
 
 
@@ -1056,28 +1093,44 @@ def process_movie_folder(folderpath):
 
         if (folderpath != new_folderpath):
 
+
+            logging.info('Marked movie folder needs renaming!')
+            duplicate_folderpath = new_folderpath+' DUPLICATE '+str(time.time())
+            tmp_folderpath = new_folderpath+' TMP '+str(time.time())
+
             try:
-                os.rename(folderpath, new_folderpath)
-
+                os.rename(folderpath, tmp_folderpath)
+                os.rename(tmp_folderpath, new_folderpath)
+                marked_folder = True
+                #keep for next stage (movie rename)
+                folderpath = new_folderpath
             except:
-                new_folderpath = new_folderpath+' '+str(time.time())
-                os.rename(folderpath, new_folderpath)
+                try:
+                    os.rename(folderpath, duplicate_folderpath)
+                    new_folderpath = duplicate_folderpath
+                    marked_folder = True
+                    #keep for next stage (movie rename)
+                    folderpath = new_folderpath
+                except:
+                    marked_folder = False
+                    marked_failed = True
 
-            #keep for next stage (movie rename)
-            folderpath = new_folderpath
+            if marked_folder:
+                logging.info('Marked movie folder to: '+new_folderpath)
+            else:
+                logging.info('Failed to mark movie folder to: '+new_folderpath)
 
-            logging.warning('\tUnsafe changes made, renaming movie folder to: ' + new_folderpath)
         else:
-            logging.info('\tNo need to rename folder: '+new_folderpath)
+            logging.info('No need to mark the folder: '+new_folderpath)
 
 
 
 # process all folders in the given filepath
 
 
-def process_all_folders(my_basedir):
+def process_main_folder(my_basedir):
 
-    logging.info("\tProcessing movies folder: " + my_basedir)
+    logging.info("Processing movies folder: " + my_basedir)
 
     # start in basedir
     for fn in os.listdir(my_basedir):
@@ -1085,16 +1138,126 @@ def process_all_folders(my_basedir):
         if not os.path.isdir(os.path.join(my_basedir, fn)):
             continue # Not a directory
 
-        logging.info('\nFolder: \t' + fn)
-        logging.info('\t=============================================================================')
+        logging.info('')
+        logging.info('')
+        logging.info('Folder: \t' + fn)
+        logging.info('=============================================================================')
         # search for NFO file
         folderpath = os.path.join(cfg.basedir, fn)
         process_movie_folder(folderpath)
+
+
+
+
+
+def perform_folder_cleanup(my_basepath):
+
+    marked_failed = False
+    logging.info("Performing markings cleanup for movies folder: " + my_basepath)
+
+    # start in basedir
+    for fn in os.listdir(my_basepath):
+
+        folderpath = os.path.join(my_basepath, fn)
+
+        if not os.path.isdir(folderpath):
+            continue # Not a directory
+
+        logging.info('Cleaning folder name: ' + fn)
+
+
+        # if folder is special ### type just ignore it
+
+        if fn[: 2] == '$ ' or fn[: 2] == '# ' or fn[: 2] == '@ ' or fn[: 2] == '! ':
+            logging.debug("Found special "+fn[: 2]+" folder path. Trying to clean it up.")
+
+            new_folderpath = os.path.join(my_basepath, fn[2:])
+            logging.debug('New folder name: ' + new_folderpath)
+
+            # trying to rename folder while minding duplicates
+
+            duplicate_folderpath = new_folderpath+' DUPLICATE '+str(time.time())
+            tmp_folderpath = new_folderpath+' TMP '+str(time.time())
+
+            try:
+                os.rename(folderpath, tmp_folderpath)
+                os.rename(tmp_folderpath, new_folderpath)
+                marked_folder = True
+                #keep for next stage (movie rename)
+                folderpath = new_folderpath
+            except:
+                try:
+                    os.rename(folderpath, duplicate_folderpath)
+                    new_folderpath = duplicate_folderpath
+                    marked_folder = True
+                    #keep for next stage (movie rename)
+                    folderpath = new_folderpath
+                except:
+                    marked_folder = False
+                    marked_failed = True
+
+    if not marked_failed:
+        logging.info('Folder markings cleanup succesfull!')
+    else:
+        logging.warning('Failed to cleanup all folder markings!')
+
+
+
+def move_folder_contents(my_basepath,my_destination):
+
+    marked_failed = False
+    logging.info("Moving movie folders")
+    logging.info(" from:\t" + my_basepath)
+    logging.info(" to:\t" + my_destination)
+
+    # start in basedir
+    for fn in os.listdir(my_basepath):
+
+        folderpath = os.path.join(my_basepath, fn)
+
+        if not os.path.isdir(folderpath):
+            continue # Not a directory
+
+        logging.info('Moving folder name: ' + fn)
+
+
+        new_folderpath = os.path.join(my_destination, fn)
+        logging.debug('New folder path: ' + new_folderpath)
+
+        # trying to rename folder while minding duplicates
+
+        duplicate_folderpath = new_folderpath+' DUPLICATE '+str(time.time())
+        tmp_folderpath = new_folderpath+' TMP '+str(time.time())
+
+        try:
+            os.rename(folderpath, tmp_folderpath)
+            os.rename(tmp_folderpath, new_folderpath)
+            marked_folder = True
+            #keep for next stage (movie rename)
+            folderpath = new_folderpath
+        except:
+            try:
+                logging.debug('Duplicate folder path: ' + duplicate_folderpath)
+                os.rename(folderpath, duplicate_folderpath)
+                new_folderpath = duplicate_folderpath
+                marked_folder = True
+                #keep for next stage (movie rename)
+                folderpath = new_folderpath
+            except:
+                marked_folder = False
+                marked_failed = True
+
+    if not marked_failed:
+        logging.info('Moved all folders succesfully!')
+    else:
+        logging.warning('Failed to move all folders!')
+
 
 # Now let's do someting cool
 
 try:
 
+    # enable / setup logging
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -1105,51 +1268,77 @@ try:
     )
 
     logger = logging.getLogger()
+
+    # Get full command-line arguments
+    full_cmd_arguments = sys.argv
+
+    # Keep all but the first
+    argument_list = full_cmd_arguments[1:]
+
+    # Initiate the parser
+    parser = argparse.ArgumentParser()
+
+    # Add long and short argument
+    parser.add_argument("--cleanup", "-c", help="Perform a folder cleanup, removing all special folder markings ($ # @ !)",action="store_true")
+    parser.add_argument("--process", "-p", help="Do imdb folders processing.",action="store_true")
+    parser.add_argument("--noalert", "-n", help="Don't do any folder alerts renaming (no !@#$ in the folder names).",action="store_true")
+    parser.add_argument("--verbose", "-v", help="Verbose mode. Display debug messages",action="store_true")
+
+    parser.add_argument("--folder", "-f", help="Define main movies folder (containing movies in sub-folders)")
+    parser.add_argument("--move", "-m", help="Define destination movies folder. Move all folders from Main folder to destination while taking care of duplicates renaming")
+
+    # Read arguments from the command line
+    args = parser.parse_args()
+
+    if args.verbose:
+        cfg.verbose = True
+
     if cfg.verbose:
         logger.setLevel(logging.DEBUG)
         logger.setLevel(logging.DEBUG)
 
-    logging.info('\tThe Organizer (python 3.7 script)')
-    logging.info('\t'+datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
-    logging.info('\tProcessing movies folder: '+cfg.basedir+'\n')
+    logging.info('')
+    logging.info('')
+    logging.info('Running: The Organizer')
+    logging.info('=============================================================================')
+    logging.info(''+datetime.today().strftime('%Y-%m-%d %H:%M:%S'))
+    logging.info('Received command line arguments:')
+    logging.info(argument_list)
+
+    # perform actions by arguments
+
+    if args.folder:
+        cfg.basedir = args.folder
+
+    if args.noalert:
+        cfg.do_folder_alerting = False
+
+    if args.cleanup:
+        perform_folder_cleanup(cfg.basedir)
+
+    if args.move:
+        move_folder_contents(cfg.basedir,args.move)
+
+    # no special cleanup, perform normal routine
+    if args.process:
+
+        # find all files outside folders and move them to nicely named folders
+        fix_orphan_files(cfg.basedir)
+
+        # first we have to grab all user movies from lists / categories
+        # will use this later for tags
+        get_imdb_user_movies(cfg.imdb_user_id)
+
+        # and now let's process and clean the movies folder
+        logging.info('Processing movies folder: '+cfg.basedir+'\n')
+        process_main_folder(cfg.basedir)
 
 
-    # testing
-    #get_imdb_list_movies(None)
-    # just testing
-    #get_imdb_user_lists(cfg.imdb_user_id)
-    #logging.debug(get_imdb_list_movies('ls098426190'))
-
-    #rint(get_imdb_details_by_id_via_imdbpie('tt0050976'))
-    #logging.info(get_imdb_details_by_id_via_rapidapi('tt0050976'))
-    # logging.info(imdb_list_array)
-    # the_tags = get_movie_tags('tt0064276')
-    # logging.info(the_tags)
-
-    #logging.info(get_imdb_id_by_name('The Pink Panther'))
-
-
-
-    # init_tmdb()
-    # get_imdb_details_by_id_via_tmdb('tt0053134')
-
-    #get_imdb_details_by_search_via_tmdb('diaboliques')
-
-
-    # find all files outside folders and move them to nicely named folders
-    fix_orphan_files(cfg.basedir)
-
-    # first we have to grab all user movies from lists / categories
-    # will use this later for tags
-    get_imdb_user_movies(cfg.imdb_user_id)
-
-    # and now let's process and clean the movies folder
-    process_all_folders(cfg.basedir)
 
 
 
 
 except Exception as e:
     errors = True
-    logging.info('[ERROR] %s' % e)
+    logging.error('[ERROR] %s' % e)
     traceback.print_exc()
