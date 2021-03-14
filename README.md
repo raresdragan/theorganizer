@@ -5,24 +5,29 @@
 
 ## HOW TO USE This
 
-osmc@osmc:~$ python3 theorganizer/theorganizer.py --help
-usage: theorganizer.py [-h] [--cleanup] [--skip] [--noalert] [--folder FOLDER]
+$ python3 theorganizer.py --help                                         
+usage: theorganizer.py [-h] [--cleanup] [--duplicates] [--process] [--noalert]
+                       [--notags] [--onlytags] [--verbose] [--folder FOLDER]
                        [--move MOVE]
 
 optional arguments:
   -h, --help            show this help message and exit
   --cleanup, -c         Perform a folder cleanup, removing all special folder
                         markings ($ # @ !)
-  --skip, -s            Skip imdb folders processing. Do anything else (e.g.
-                        cleanup if called)
+  --duplicates, -d      Mark all duplicate movies with 'DUPLICATE'
+  --process, -p         Do imdb folders processing.
   --noalert, -n         Don't do any folder alerts renaming (no !@#$ in the
                         folder names).
+  --notags, -t          Don't do the initial tags checking
+  --onlytags, -o        Only process tags updates. Nothing else.
+  --verbose, -v         Verbose mode. Display debug messages
   --folder FOLDER, -f FOLDER
                         Define main movies folder (containing movies in sub-
                         folders)
   --move MOVE, -m MOVE  Define destination movies folder. Move all folders
                         from Main folder to destination while taking care of
                         duplicates renaming
+
 
 
 ## WHEN TO USE THIS
@@ -42,12 +47,18 @@ optional arguments:
 
 ## VERSION HISTORY
 
+
+### v.0.1.0 @ 2021-03-15
+- midnight version
+- --duplicates really works for basefolder now (--folder) and is marking duplicates with DUPLICATE
+- ca't remember what else is new but a lot is new
+
 ### v.0.0.9 @ 2021-03-14
 - major updates
 - command line arguments for cleanup noprocessing and folder name
 - fixed renaming issues on exfat (case insensitive ccrashed the rename)
-- marking duplicates with DUPLICATE
-- etc
+- on copy / move marking duplicates with DUPLICATE
+- -- cleanup performs folder cleanup (removes pre markings (!@#$)
 
 ### v.0.0.8 @ 2021-03-07
 - do nothing, just a simple rename if no video file detected
