@@ -174,8 +174,6 @@ def get_imdb_user_lists(imdb_user_id):
     body = response.read()
 
 
-    logging.debug(body)
-
     # ATTENTION !!!
     # WARNING !!!
     # This needs to be updated if the imdb site will change its HTML code !!!
@@ -451,6 +449,12 @@ def get_imdb_details_by_search_via_imdbpie(search):
             first_imdb_object = False
             logging.debug('First object gets priority!: '+str(sort))
 
+
+        if imdb_object[i].title.strip().lower() == search.strip().lower():
+            sort+=1
+            logging.debug('Exact matching name gets priority!: '+str(sort))
+
+
         if year:
             if str(imdb_object[i].year) == str(year):
                 logging.debug('Found matching year!: '+year)
@@ -554,7 +558,7 @@ def get_imdb_details_by_id_via_tmdb(imdb_id):
 
 
 # Get imdb details using local imdbpie library
-# ==============================================================================
+# ##############################################################################
 def get_imdb_details_by_id_via_imdbpie(imdb_id):
 
     imdb_object = imdb.get_title(imdb_id)
@@ -564,7 +568,7 @@ def get_imdb_details_by_id_via_imdbpie(imdb_id):
 
 
 
-# ==============================================================================
+# ##############################################################################
 def get_imdb_details_by_search_via_rapidapi(search):
 
     logging.info('Searching via rapidapi: ')
@@ -630,7 +634,13 @@ def get_imdb_details_by_search_via_rapidapi(search):
         if first_imdb_object == True:
             sort +=1
             first_imdb_object = False
-            logging.info('First object gets priority!: '+str(sort))
+            logging.debug('First object gets priority!: '+str(sort))
+
+
+        if imdb_object[i]['title'].strip().lower() == search.strip().lower():
+            sort+=1
+            logging.debug('Exact matching name gets priority!: '+str(sort))
+
 
         for word in imdb_object[i]['title'].split(' '):
             logging.debug(word.lower()+'|?|'+search.lower())
@@ -667,7 +677,8 @@ def get_imdb_details_by_search_via_rapidapi(search):
 
 
 # get imdb object by search using rapidapi
-# ==============================================================================
+# ##############################################################################
+
 def get_imdb_details_by_id_via_rapidapi(imdb_id):
 
     logging.info("Get IMDB details by id via rapidapi: " + imdb_id)
@@ -698,8 +709,9 @@ def get_imdb_details_by_id_via_rapidapi(imdb_id):
 
 
 # Get imdb details using local imdbpie and second by rapidapi library
-# ==============================================================================
-def get_imdb_id_by_name(folderpath,supposed_id):
+# ##############################################################################
+
+def get_imdb_id_by_name(folderpath, supposed_id):
 
     imdb_id = None
     first_imdb_id = None
@@ -754,7 +766,13 @@ def get_imdb_id_by_name(folderpath,supposed_id):
 
     return imdb_id
 
+
+
+
+
 # find single files and move them to folders
+# ##############################################################################
+
 def fix_orphan_files(basepath):
 
     global video_extensions
@@ -807,8 +825,8 @@ def fix_orphan_files(basepath):
 
 
 
-
-
+# Cleanup movie folde names (remove !@#$)
+# ##############################################################################
 
 def folder_cleanup(my_basepath):
 
@@ -863,8 +881,8 @@ def folder_cleanup(my_basepath):
         logging.warning('Failed to cleanup all folder markings!')
 
 
-
-
+# Safe rename of files or folders
+# ##############################################################################
 
 def safe_rename(folderpath,new_folderpath):
 
@@ -905,6 +923,7 @@ def check_duplicates(my_basepath):
     global video_extensions
     nfo_file = None
     nfo_found = False
+    count_renamed = 0
 
     movies=[]
 
@@ -1019,10 +1038,14 @@ def check_duplicates(my_basepath):
 
                 renamed_ok = safe_rename(movie['path'], movie['path']+' - DUPLICATE')
 
-                if renamed_ok == False:
+
+                if renamed_ok:
+                    count_renamed+=1
+                else:
                     marked_failed = True
 
     logging.info('Duplicate movies found: '+ str(len(duplicates)))
+    logging.info('Duplicate movies renamed: '+ str(count_renamed))
 
     if not marked_failed:
         logging.info('All duplicates marked succesfully!')
@@ -1303,13 +1326,17 @@ def process_movie_folder(folderpath):
 
         # grab IMDB link by folder name
         # also send imdb_id found in nfo to compare it
-        logging.info("Searching IMDB link by folder name: "+folderpath)
+        logging.info('###')
+        logging.info("Searching IMDB link by folder name: ")
+        logging.info(folderpath)
         movie_id_by_folder = get_imdb_id_by_name(folderpath,imdb_id)
 
         # grab IMDB link by file name
         # also send imdb_id found in nfo to compare it
         if found_video == True:
-            logging.info("Searching IMDB link by file name: "+video_file_name)
+            logging.info('###')
+            logging.info("Searching IMDB link by file name: ")
+            logging.info(video_file_name)
             movie_id_by_file = get_imdb_id_by_name(video_file_name,imdb_id)
 
         # compare two movie ids
@@ -1648,8 +1675,9 @@ def process_main_folder(my_basedir):
         logging.info('')
         logging.info('')
         logging.info('Folder: \t' + fn)
-        logging.info('=============================================================================')
-        # search for NFO file
+        logging.info('################################################################################')
+
+        # process the folder
         folderpath = os.path.join(cfg.basedir, fn)
         process_movie_folder(folderpath)
 
