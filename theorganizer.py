@@ -389,7 +389,7 @@ def get_clean_name_by_name(the_movie_name):
 # Get imdb details using local imdbpie library
 # ==============================================================================
 
-def get_imdb_details_by_search_via_imdbpie(search):
+def get_imdb_details_by_search_via_imdbpie(search, supposed_id):
 
     logging.info('Searching via Imdbpie: ')
     logging.info(search)
@@ -432,8 +432,12 @@ def get_imdb_details_by_search_via_imdbpie(search):
     search = strip_accents(search)
 
     # only feature films !!! ??? !!!
-    imdb_object = [x for x in imdb_search if x.type=='feature']
-    #imdb_object = imdb_search
+    # if cfg.content_type == 'movie':
+    #     imdb_object = [x for x in imdb_search if x.type=='feature']
+    # else:
+    #     imdb_object = imdb_search
+
+    imdb_object = imdb_search
 
     for i in range(len(imdb_object)):
 
@@ -447,17 +451,25 @@ def get_imdb_details_by_search_via_imdbpie(search):
         if first_imdb_object == True:
             sort +=1
             first_imdb_object = False
-            logging.debug('First object gets priority!: '+str(sort))
+            logging.debug('First object gets priority!!!')
+
+        if imdb_object[i].imdb_id == supposed_id:
+            sort+=10
+            logging.debug('Found supposed id (from other source) prioritize it!!!')
+
+        if imdb_object[i].type == 'feature':
+            sort+=1
+            logging.debug('Feature films get priority!!!')
 
 
         if imdb_object[i].title.strip().lower() == search.strip().lower():
             sort+=1
-            logging.debug('Exact matching name gets priority!: '+str(sort))
+            logging.debug('Exact matching name gets priority!!!')
 
 
         if year:
             if str(imdb_object[i].year) == str(year):
-                logging.debug('Found matching year!: '+year)
+                logging.debug('Found matching year! Prioritize it!!! -> '+year)
                 sort +=2
 
         for word in imdb_object[i].title.split(' '):
@@ -569,7 +581,7 @@ def get_imdb_details_by_id_via_imdbpie(imdb_id):
 
 
 # ##############################################################################
-def get_imdb_details_by_search_via_rapidapi(search):
+def get_imdb_details_by_search_via_rapidapi(search, supposed_id):
 
     logging.info('Searching via rapidapi: ')
     logging.info(search)
@@ -636,6 +648,9 @@ def get_imdb_details_by_search_via_rapidapi(search):
             first_imdb_object = False
             logging.debug('First object gets priority!: '+str(sort))
 
+        if imdb_object[i]['id'] == supposed_id:
+            sort+=10
+            logging.debug('Found supposed id (from other source) prioritize it!!!: '+str(sort))
 
         if imdb_object[i]['title'].strip().lower() == search.strip().lower():
             sort+=1
@@ -726,7 +741,7 @@ def get_imdb_id_by_name(folderpath, supposed_id):
 
     logging.info("First: Searching movie via imdbpie")
     search_name = get_clean_name_by_name(the_movie_name)
-    first_imdb_object = get_imdb_details_by_search_via_imdbpie(search_name)
+    first_imdb_object = get_imdb_details_by_search_via_imdbpie(search_name, supposed_id)
 
     if cfg.verbose:
         logging.debug(first_imdb_object)
@@ -738,7 +753,7 @@ def get_imdb_id_by_name(folderpath, supposed_id):
         logging.info("Found imdb_movie_id: " + first_imdb_id)
 
     logging.info("Second: Searching movie via rapidapi")
-    second_imdb_object = get_imdb_details_by_search_via_rapidapi(search_name)
+    second_imdb_object = get_imdb_details_by_search_via_rapidapi(search_name, supposed_id)
 
     if cfg.verbose:
         logging.debug(second_imdb_object)
@@ -853,27 +868,12 @@ def folder_cleanup(my_basepath):
             logging.debug('New folder name: ' + new_folderpath)
 
             # trying to rename folder while minding duplicates
+            marked_folder = safe_rename(folderpath,new_folderpath)
 
-            duplicate_folderpath = new_folderpath+' DUPLICATE '+str(time.time())
-            tmp_folderpath = new_folderpath+' TMP '+str(time.time())
-
-            try:
-                os.rename(folderpath, tmp_folderpath)
-                folderpath = tmp_folderpath
-                os.rename(tmp_folderpath, new_folderpath)
-                marked_folder = True
-                #keep for next stage (movie rename)
+            if marked_folder:
                 folderpath = new_folderpath
-            except:
-                try:
-                    os.rename(folderpath, duplicate_folderpath)
-                    new_folderpath = duplicate_folderpath
-                    marked_folder = True
-                    #keep for next stage (movie rename)
-                    folderpath = new_folderpath
-                except:
-                    marked_folder = False
-                    marked_failed = True
+            else:
+                marked_failed = True
 
     if not marked_failed:
         logging.info('Folder markings cleanup succesfull!')
